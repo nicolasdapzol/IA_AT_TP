@@ -76,18 +76,11 @@ class ABA_generator:
     L : ensemble de litteraux (définis par une liste)    
     R : ensemble de regles (définis par des instances de la classe Rule)
     A : ensemble d'assumptions (définis par une liste)
-    C : dictionnaire des contraires (définis par un dictionnaire, clé = assumption, valeur = contraire)
+    C : dictionnaire des contraires (clé = contraire, valeur = hypothèse)
     PREF : ensemble de preferences (définis par des paires (a, b) signifiant a > b)
     
     (L, R, A, C, PREF) 
     
-    les premières fonctions servent à définir les éléments du framework 
-    
-    puis à calculer ses arguments et attaques.
-
-    Les setters permettent une construction progressive. validate() verifie
-    la coherence globale avant chaque calcul. Une preference (a, b) signifie
-    a > b, donc a est strictement preferee a b.
     """
 
     def __init__(self, literals=(), assumptions=(), contraries=None,
@@ -114,7 +107,7 @@ class ABA_generator:
         return set(self._assumptions)
 
     def setContraries(self, contraries):
-        """Exemple : {'a': 'r'} associe a l'assumption a son contraire r."""
+        """Stocke les contraires sous la forme {contraire: hypothèse}."""
         self._contraries = dict(contraries)
 
     def getContraries(self):
@@ -137,91 +130,6 @@ class ABA_generator:
     def getPreferences(self):
         return set(self._preferences)
 
-    def transformeToNonCircular(self):
-        """Retourne un nouvel ABA plat, atomique et non circulaire.
-
-        Exemple : p <- a et q <- p deviennent p <- a et q <- a.
-        Tous les supports distincts sont conservés, mais pas les arbres de
-        preuve ni les noms des règles. Les cycles sans base disparaissent.
-        Le calcul est fini, mais peut produire un nombre exponentiel de supports.
-        """
-        literals = self.getLiterals()
-        assumptions = self.getAssumptions()
-
-        # Une hypothèse ne doit pas être déduite par une règle dans un ABA plat.
-        if not assumptions <= literals:
-            raise ValueError('Les assumptions doivent appartenir a L.')
-        for rule in self._rules:
-            if not {rule.head, *rule.body} <= literals:
-                raise ValueError(f'Regle {rule.name} : litteral absent de L.')
-            if rule.head in assumptions:
-                raise ValueError('ABA plat requis : une regle conclut une assumption.')
-
-        # supports['p'] = {{a}, {b}} signifie : a OU b permet de déduire p.
-        # Un frozenset est immuable : on peut le stocker dans un set sans doublons.
-        supports = {literal: set() for literal in literals}
-        for assumption in assumptions:
-            supports[assumption].add(frozenset({assumption}))
-        # supports initiaux : chaque hypothèse se supporte elle-même.
-
-        # Repasser sur les règles tant qu'on découvre de nouveaux supports.
-        changed = True
-        while changed:
-            changed = False
-            for rule in self._rules:
-                # On ne traite que les règles dont toutes les prémisses ont des supports connus.
-                premisses_connus=True
-                for literal in rule.body:
-                    if not supports[literal]:
-                        premisses_connus=False
-                        break
-                if not premisses_connus:
-                    continue
-                # toutes les prémisses ont des supports connus
-                
-                
-                # on prends les supports connus pour chaque prémisse et on stocke dans choice
-                les_supports =[] 
-                for literal in rule.body:
-                    s = supports[literal]
-                    if s not in les_supports:
-                        les_supports.append(s)
-                
-                #choices = [tuple(s) for s in les_supports]
-                
-                
-
-                # product choisit UN support par prémisse, pour chaque combinaison.
-                # Sans prémisses (un fait), il fournit une combinaison vide.
-                for premises in les_supports:
-                    support = frozenset().union(*premises)
-                    if support not in supports[rule.head]:
-                        supports[rule.head].add(support)
-                        changed = True
-
-        # Chaque support donne une règle directe : conclusion <- hypothèses.
-        # on enregistre les nouvelles règles 
-        # les litteraux et les assumptions sont copiés dans de nouvelles variables pour les nouvelles règles.
-        new_literals=literals
-        new_assumptions=assumptions
-        
-        # les nouvelles règles :
-        # on trie pas les règles ici, on les garde dans l'ordre de génération
-        new_rules = []
-        # on parcourt chaque littéral et ses supports pour créer de nouvelles règles non circulaires
-        for lit in literals:
-            for support in supports[lit]:
-                new_rules.append((f'non_circular_{len(new_rules) + 1}', lit, tuple(sorted(support))))
-        
-        print(new_rules)
-        
-
-        # Seules les règles changent ; le framework original reste intact.
-        return ABA_generator(
-            new_literals, new_assumptions, self.getContraries(), new_rules,
-            self.getPreferences(),
-        )
-    
     def createArguments(self):
         """ y a surement plus simple ! 
         construit les arguments ( il nous faut une classe argument !) puis on applique l'algo
@@ -351,15 +259,15 @@ class ABA_generator:
                     continue
 
                 if contraire in cible.support:
-                    type_attaque = "normale"
-                    for lit in arg.support:
-                        # on vérifie si l'attaque peut être inversée 
-                        if (arg.conclusion, lit) in preferences:
-                            type_attaque = "inversée"
-                            break
-
-                    print(f"Attaque détectée : {arg} attaque {cible} ({type_attaque})")
-                    liste_attaques.append((arg, cible, type_attaque))
+                    attaque_inversee = any(
+                        (contraire, lit) in preferences for lit in arg.support
+                    )
+                    if attaque_inversee:
+                        print(f"Attaque inversée : {cible} attaque {arg}")
+                        liste_attaques.append((cible, arg, "inversée"))
+                    else:
+                        print(f"Attaque détectée : {arg} attaque {cible} (normale)")
+                        liste_attaques.append((arg, cible, "normale"))
 
         self.attaques = liste_attaques
         # trie des attaques par nom de l'argument attaquant
@@ -368,6 +276,71 @@ class ABA_generator:
         for arg in liste_attaques:
             print(arg)
         #print("Attaques détectées :", self.attaques)
+    
+    def transformeToNonCircular(self):
+        """Retourne un nouvel ABA plat, atomique et non circulaire.
+
+        Exemple : p <- a et q <- p deviennent p <- a et q <- a.
+        Tous les supports distincts sont conservés, mais pas les arbres de
+        preuve ni les noms des règles. Les cycles sans base disparaissent.
+        Le calcul est fini, mais peut produire un nombre exponentiel de supports.
+        """
+        literals = self.getLiterals()
+        assumptions = self.getAssumptions()
+
+        # Une hypothèse ne doit pas être déduite par une règle dans un ABA plat.
+        if not assumptions <= literals:
+            raise ValueError('Les assumptions doivent appartenir a L.')
+        for rule in self._rules:
+            if not {rule.head, *rule.body} <= literals:
+                raise ValueError(f'Regle {rule.name} : litteral absent de L.')
+            if rule.head in assumptions:
+                raise ValueError('ABA plat requis : une regle conclut une assumption.')
+
+        # supports['p'] = {{a}, {b}} signifie : a OU b permet de déduire p.
+        # Un frozenset est immuable : on peut le stocker dans un set sans doublons.
+        supports = {literal: set() for literal in literals}
+        for assumption in assumptions:
+            supports[assumption].add(frozenset({assumption}))
+        # supports initiaux : chaque hypothèse se supporte elle-même.
+
+        # Repasser sur les règles tant qu'on découvre de nouveaux supports.
+        changed = True
+        while changed:
+            changed = False
+            for rule in self._rules:
+                if any(not supports[literal] for literal in rule.body):
+                    continue
+                # Chaque prémisse choisit un support; product() traite aussi les faits.
+                for combinaison in product(*(supports[literal] for literal in rule.body)):
+                    support = frozenset().union(*combinaison)
+                    if support not in supports[rule.head]:
+                        supports[rule.head].add(support)
+                        changed = True
+
+        # Chaque support donne une règle directe : conclusion <- hypothèses.
+        # on enregistre les nouvelles règles 
+        # les litteraux et les assumptions sont copiés dans de nouvelles variables pour les nouvelles règles.
+        new_literals=literals
+        new_assumptions=assumptions
+        
+        # les nouvelles règles :
+        # on trie pas les règles ici, on les garde dans l'ordre de génération
+        new_rules = []
+        # on parcourt chaque littéral et ses supports pour créer de nouvelles règles non circulaires
+        for lit in literals:
+            for support in supports[lit]:
+                new_rules.append((f'non_circular_{len(new_rules) + 1}', lit, tuple(sorted(support))))
+        
+        print(new_rules)
+        
+
+        # Seules les règles changent ; le framework original reste intact.
+        return ABA_generator(
+            new_literals, new_assumptions, self.getContraries(), new_rules,
+            self.getPreferences(),
+        )
+        
     
     
     def from_file(self, file_path):
@@ -576,10 +549,13 @@ if __name__ == '__main__':
     print("Rules:", aba.getRules())
     print("Preferences:", aba.getPreferences())
     
+    #aba.createArguments()
+    #aba.createAttacks()
+    #aba.visualize(filename="aba_framework", output_dir="/home/nico/python/IA_DYCO/TP1", format_="png", show=True)
+    #aba.transformeToNonCircular()
+    
+    aba = aba.from_file("/home/nico/python/IA_DYCO/IA_AT_TP/exemple_aba3.txt")
     aba.createArguments()
     aba.createAttacks()
-    #aba.visualize(filename="aba_framework", output_dir="/home/nico/python/IA_DYCO/TP1", format_="png", show=True)
-    aba.transformeToNonCircular()
     
-    aba = aba.from_file("./exemple_aba.txt")
 
