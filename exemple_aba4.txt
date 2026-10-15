@@ -1,0 +1,15 @@
+## Literals
+L: [a,p,q]
+
+## Assumptions
+A: [a]
+
+## Contraries
+
+## Rules
+[r1]: p <- a
+[r2]: p <- q
+[r3]: q <- p
+
+## Preferences
+PREF: a > b

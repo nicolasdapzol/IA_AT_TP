@@ -1,26 +1,30 @@
-# Framework ABA
+# Atelier ABA
 
-Application web pour charger un framework ABA au format texte, calculer ses arguments et ses attaques, puis afficher sa conversion non circulaire et atomique.
+Application web Python pour charger et explorer les frameworks ABA fournis dans le projet.
 
-## Lancer localement
+## Lancement local
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
-Ouvrir `http://localhost:5000`. Le framework d'exemple est préchargé ; un fichier `.txt` UTF-8 peut aussi être importé. La taille maximale d'envoi est de 64 Ko.
+Ouvrir ensuite <http://127.0.0.1:5000>. Le port local peut être remplacé avec la variable d'environnement `PORT`.
 
-## Déployer sur Back4App Containers
+## Tests
 
-`application_aba.py` est l'interface Tkinter pour ordinateur ; elle reste disponible dans le dépôt, mais Back4App lance la version web définie dans `app.py`, qui réutilise `aba_gen_nico.py` et `exemple_aba.txt`.
+```bash
+python -m unittest -v test_app
+```
 
-1. Pousser le contenu de `IA_AT_TP` dans un dépôt GitHub.
-2. Dans Back4App Containers, créer un conteneur et connecter le dépôt.
-3. Utiliser `IA_AT_TP` comme répertoire de construction s'il s'agit d'un sous-dossier du dépôt. Le fichier de construction est `Dockerfile`.
-4. Déployer la branche souhaitée. L'application écoute sur la variable `PORT` fournie par la plateforme, avec `5000` comme valeur par défaut.
-5. Ouvrir l'URL du conteneur une fois la construction terminée.
+## Déploiement Back4App
 
-Aucune base de données ni variable secrète n'est nécessaire. `WEB_CONCURRENCY` permet d'ajuster le nombre de workers Gunicorn (2 par défaut).
+La cible retenue est **Back4App Containers**, qui construit l'application depuis le `Dockerfile` du dépôt. Connecter le dépôt Git à un nouveau conteneur Back4App et utiliser le port HTTP `8080`. La commande de démarrage lance Gunicorn et respecte la variable `PORT` fournie par la plateforme.
+
+Le déploiement dans un compte Back4App n'a pas été effectué depuis cet environnement. Après création du conteneur, vérifier le build, l'état de santé sur `/healthz` et l'accès HTTP à la page d'accueil.
+
+## Import et limites
+
+Les fichiers et contenus importés sont limités à 64 Ko et doivent être en UTF-8. Les URL sont limitées aux protocoles HTTP(S), aux hôtes résolus sur des adresses publiques, sans redirection, avec un délai de cinq secondes. Le contenu importé est analysé comme du texte ABA et n'est jamais exécuté comme du code.

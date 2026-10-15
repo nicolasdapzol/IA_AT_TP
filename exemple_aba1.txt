@@ -1,14 +1,17 @@
 ## Literals
-L: [a,p,q]
+L: [a,b,c,p,q,r,s,t]
 
 ## Assumptions
-A: [a]
+A: [a,b,c]
 
 ## Contraries
-C(p): a
+C(a): p
+C(b): s
+C(c): t
 
 ## Rules
-[r1]: q <- p
-[r2]: p <- a
+[r1]: p <- q,a
+[r2]: q <- 
+[r3]: r <- b,c
 
 ## Preferences

@@ -5,9 +5,9 @@ L: [a,b,c,q,p,r,s,t]
 A: [a,b,c]
 
 ## Contraries
-C(r): a
-C(s): b
-C(t): c
+C(a): r
+C(b): s
+C(c): t
 
 ## Rules
 [r1]: p <- q,a

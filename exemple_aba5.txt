@@ -1,0 +1,19 @@
+## Literals
+L: [a,b,x,y,z]
+
+## Assumptions
+A: [a,b]
+
+## Contraries
+C(a): y
+C(b): z
+
+## Rules
+[r1]: y <- b
+[r2]: y <- y
+[r3]: x <- x
+[r4]: x <- a
+[r5]: z <- x,y
+
+## Preferences
+PREF: a > b
