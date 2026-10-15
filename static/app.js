@@ -182,6 +182,83 @@ function renderEmptyList(message) {
   return `<div class="empty-list">${escapeHtml(message)}</div>`;
 }
 
+function argumentId(argument) {
+  return JSON.stringify([argument.conclusion, argument.support]);
+}
+
+function shortLabel(value, limit) {
+  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
+function renderArgumentGraph(data) {
+  if (!data.arguments.length) return renderEmptyList("Aucun argument à représenter.");
+
+  const columns = Math.min(3, data.arguments.length);
+  const rows = Math.ceil(data.arguments.length / columns);
+  const width = columns * 240 + 40;
+  const height = rows * 140 + 30;
+  const nodeWidth = 204;
+  const nodeHeight = 76;
+  const positions = new Map();
+  data.arguments.forEach((argument, index) => {
+    positions.set(argumentId(argument), {
+      x: 120 + (index % columns) * 240,
+      y: 65 + Math.floor(index / columns) * 140,
+    });
+  });
+
+  const edges = data.attacks.map((attack, index) => {
+    const source = positions.get(argumentId(attack.attacker));
+    const target = positions.get(argumentId(attack.target));
+    if (!source || !target) return "";
+    const kind = attack.kind === "inversée" ? "reversed" : "normal";
+    if (source === target) {
+      const startX = source.x - 30;
+      const endX = source.x + 30;
+      const top = source.y - nodeHeight / 2;
+      return `<path class="graph-edge ${kind}" d="M ${startX} ${top} C ${startX - 48} ${top - 72}, ${endX + 48} ${top - 72}, ${endX} ${top}" marker-end="url(#attackArrow-${kind})"><title>${escapeHtml(attack.kind)} : ${escapeHtml(attack.attacker.label)} vers ${escapeHtml(attack.target.label)}</title></path>`;
+    }
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const distance = Math.hypot(dx, dy);
+    const ux = dx / distance;
+    const uy = dy / distance;
+    const startOffset = Math.min(nodeWidth / 2 / (Math.abs(ux) || Number.EPSILON), nodeHeight / 2 / (Math.abs(uy) || Number.EPSILON));
+    const endOffset = startOffset;
+    const startX = source.x + ux * startOffset;
+    const startY = source.y + uy * startOffset;
+    const endX = target.x - ux * endOffset;
+    const endY = target.y - uy * endOffset;
+    const curve = ((index % 5) - 2) * 14;
+    const controlX = (startX + endX) / 2 - uy * curve;
+    const controlY = (startY + endY) / 2 + ux * curve;
+    return `<path class="graph-edge ${kind}" d="M ${startX} ${startY} Q ${controlX} ${controlY}, ${endX} ${endY}" marker-end="url(#attackArrow-${kind})"><title>${escapeHtml(attack.kind)} : ${escapeHtml(attack.attacker.label)} vers ${escapeHtml(attack.target.label)}</title></path>`;
+  }).join("");
+
+  const nodes = data.arguments.map((argument) => {
+    const { x, y } = positions.get(argumentId(argument));
+    const support = argument.support.join(", ") || "∅";
+    return `<g class="graph-node" transform="translate(${x} ${y})"><title>${escapeHtml(argument.label)}</title><rect x="-${nodeWidth / 2}" y="-${nodeHeight / 2}" width="${nodeWidth}" height="${nodeHeight}" rx="3"></rect><text class="graph-conclusion" text-anchor="middle" y="-5">${escapeHtml(shortLabel(argument.conclusion, 23))}</text><text class="graph-support" text-anchor="middle" y="17">${escapeHtml(shortLabel(`support : ${support}`, 28))}</text></g>`;
+  }).join("");
+
+  return `<div class="graph-shell">
+    <div class="graph-legend" aria-label="Légende des attaques">
+      <span><i class="legend-line normal" aria-hidden="true"></i>Attaque normale</span>
+      <span><i class="legend-line reversed" aria-hidden="true"></i>Attaque inversée</span>
+    </div>
+    <div class="graph-scroll" role="region" aria-label="Graphe des arguments ABA" tabindex="0">
+      <svg class="argument-graph" viewBox="0 0 ${width} ${height}" role="img" aria-label="${data.arguments.length} arguments et ${data.attacks.length} attaques">
+        <defs>
+          <marker id="attackArrow-normal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker>
+          <marker id="attackArrow-reversed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker>
+        </defs>
+        ${edges || ""}${nodes}
+      </svg>
+    </div>
+    ${data.attacks.length ? "" : `<p class="graph-note">Aucune attaque dans ce framework.</p>`}
+  </div>`;
+}
+
 function renderArguments(data) {
   const argumentsHtml = data.arguments.length
     ? data.arguments.map((argument) => `
@@ -204,10 +281,12 @@ function renderArguments(data) {
     : renderEmptyList("Aucune attaque calculée.");
   resultBody.innerHTML = `
     <div class="result-tabs" role="tablist" aria-label="Résultats arguments et attaques">
-      <button class="result-tab is-active" data-view="arguments" role="tab" aria-selected="true" type="button">Arguments · ${data.arguments.length}</button>
+      <button class="result-tab is-active" data-view="graph" role="tab" aria-selected="true" type="button">Graphe</button>
+      <button class="result-tab" data-view="arguments" role="tab" aria-selected="false" type="button">Arguments · ${data.arguments.length}</button>
       <button class="result-tab" data-view="attacks" role="tab" aria-selected="false" type="button">Attaques · ${data.attacks.length}</button>
     </div>
-    <div class="result-list" data-list="arguments">${argumentsHtml}</div>
+    <div class="result-list" data-list="graph">${renderArgumentGraph(data)}</div>
+    <div class="result-list" data-list="arguments" hidden>${argumentsHtml}</div>
     <div class="result-list" data-list="attacks" hidden>${attacksHtml}</div>`;
   document.querySelectorAll(".result-tab").forEach((tab) => {
     tab.addEventListener("click", () => {

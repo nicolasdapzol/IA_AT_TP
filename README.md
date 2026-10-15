@@ -1,3 +1,13 @@
+# TP Dynamique connaissance partie 1
+
+#
+
+
+
+
+
+# appli web 
+voir 
 # Atelier ABA
 
 Application web Python pour charger et explorer les frameworks ABA fournis dans le projet.
