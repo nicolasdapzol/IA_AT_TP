@@ -20,4 +20,4 @@ dossier static et template pour la définition de la page
 python app.py
 
 live : 
-lien à mettre 
+lien back4app ou dashboard.render à mettre ( mais les liens se périment)
