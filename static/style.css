@@ -429,7 +429,6 @@ select, input[type="url"] {
 
 .result-tab.is-active { border-color: var(--coral); color: var(--forest); }
 .result-list { display: grid; gap: 6px; max-height: 420px; overflow: auto; }
-.result-list[data-list="graph"] { max-height: none; overflow: visible; }
 
 .graph-shell { min-width: 0; }
 .graph-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 4px 2px 10px; color: var(--muted); font-size: 10px; }
@@ -448,6 +447,10 @@ select, input[type="url"] {
 .graph-conclusion { fill: var(--forest); font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; }
 .graph-support { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 9px; }
 .graph-note { margin: 8px 2px 0; color: var(--muted); font-size: 10px; }
+.graph-panel { margin-top: 16px; }
+.graph-panel .panel-heading { flex-wrap: wrap; }
+.graph-viewport { border-top: 1px solid var(--line); padding: 12px 15px 15px; }
+.graph-viewport[hidden] { display: none; }
 
 .argument-row, .attack-row, .property-row {
   min-width: 0;

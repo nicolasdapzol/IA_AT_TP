@@ -9,6 +9,9 @@ const resultBody = document.querySelector("#resultBody");
 const resultTitle = document.querySelector("#resultTitle");
 const resultTag = document.querySelector("#resultTag");
 const resultCount = document.querySelector("#resultCount");
+const graphToggleButton = document.querySelector("#graphToggleButton");
+const graphViewport = document.querySelector("#graphViewport");
+const graphContainer = document.querySelector("#graphContainer");
 const actionButtons = [...document.querySelectorAll(".action-button")];
 
 const state = {
@@ -16,6 +19,8 @@ const state = {
   activeFramework: null,
   activeName: "éditeur",
   derivedSource: "",
+  graphData: null,
+  graphSource: "",
   busy: false,
 };
 
@@ -57,6 +62,12 @@ function setStatus(message) {
   appStatus.textContent = message;
 }
 
+function setGraphVisibility(isVisible) {
+  graphViewport.hidden = !isVisible;
+  graphToggleButton.setAttribute("aria-expanded", String(isVisible));
+  graphToggleButton.textContent = isVisible ? "Masquer le graphe" : "Afficher le graphe";
+}
+
 function showMessage(element, message, kind = "") {
   element.textContent = message;
   element.classList.toggle("is-error", kind === "error");
@@ -70,6 +81,7 @@ function setBusy(isBusy, message = "") {
   actionButtons.forEach((button) => {
     button.disabled = isBusy || !state.activeText;
   });
+  graphToggleButton.disabled = isBusy || !state.activeText;
   if (message) setStatus(message);
 }
 
@@ -87,6 +99,12 @@ function updateDraftState() {
 }
 
 function setActiveFramework(text, name, payload, updateEditor = true) {
+  if (state.activeText !== text) {
+    state.graphData = null;
+    state.graphSource = "";
+    graphContainer.replaceChildren();
+    setGraphVisibility(false);
+  }
   state.activeText = text;
   state.activeName = name;
   state.activeFramework = payload;
@@ -97,6 +115,7 @@ function setActiveFramework(text, name, payload, updateEditor = true) {
   showMessage(sourceMessage, `${name} chargé.`, "success");
   updateDraftState();
   actionButtons.forEach((button) => { button.disabled = state.busy; });
+  graphToggleButton.disabled = state.busy;
 }
 
 function setInvalidFramework(message) {
@@ -281,12 +300,10 @@ function renderArguments(data) {
     : renderEmptyList("Aucune attaque calculée.");
   resultBody.innerHTML = `
     <div class="result-tabs" role="tablist" aria-label="Résultats arguments et attaques">
-      <button class="result-tab is-active" data-view="graph" role="tab" aria-selected="true" type="button">Graphe</button>
-      <button class="result-tab" data-view="arguments" role="tab" aria-selected="false" type="button">Arguments · ${data.arguments.length}</button>
+      <button class="result-tab is-active" data-view="arguments" role="tab" aria-selected="true" type="button">Arguments · ${data.arguments.length}</button>
       <button class="result-tab" data-view="attacks" role="tab" aria-selected="false" type="button">Attaques · ${data.attacks.length}</button>
     </div>
-    <div class="result-list" data-list="graph">${renderArgumentGraph(data)}</div>
-    <div class="result-list" data-list="arguments" hidden>${argumentsHtml}</div>
+    <div class="result-list" data-list="arguments">${argumentsHtml}</div>
     <div class="result-list" data-list="attacks" hidden>${attacksHtml}</div>`;
   document.querySelectorAll(".result-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -344,7 +361,12 @@ function renderResult(data) {
   resultCount.textContent = data.action === "arguments"
     ? `${data.arguments.length} ARG. · ${data.attacks.length} ATT.`
     : "ANALYSÉ";
-  if (data.action === "arguments") renderArguments(data);
+  if (data.action === "arguments") {
+    state.graphData = data;
+    state.graphSource = sourceEditor.value;
+    graphContainer.innerHTML = renderArgumentGraph(data);
+    renderArguments(data);
+  }
   if (data.action === "properties") renderProperties(data.properties);
   if (data.action === "noncircular" || data.action === "atomic") renderTransformation(data);
 }
@@ -409,6 +431,27 @@ document.querySelector("#validateButton").addEventListener("click", async () => 
   }
 });
 sourceEditor.addEventListener("input", updateDraftState);
+sourceEditor.addEventListener("input", () => {
+  if (state.graphSource !== sourceEditor.value) {
+    state.graphData = null;
+    graphContainer.replaceChildren();
+    setGraphVisibility(false);
+  }
+});
+graphToggleButton.addEventListener("click", async () => {
+  if (!graphViewport.hidden) {
+    setGraphVisibility(false);
+    return;
+  }
+  if (!state.graphData || state.graphSource !== sourceEditor.value) {
+    state.graphData = null;
+    await runAction("arguments");
+  }
+  if (state.graphData && state.graphSource === sourceEditor.value) {
+    setGraphVisibility(true);
+    graphViewport.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+});
 document.querySelector("#editorTab").addEventListener("click", () => switchSourceTab("editor"));
 document.querySelector("#previewTab").addEventListener("click", () => switchSourceTab("preview"));
 actionButtons.forEach((button) => {
