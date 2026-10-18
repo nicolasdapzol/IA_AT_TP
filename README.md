@@ -1,3 +1,14 @@
+# ce dossier comprend 
+## un sous_dossier document avec le rapport du projet 
+## un sous dossier partie 1
+avec le code lié à la réalisation de la partie 1
+## un sous dossier partie2 
+avec le code lié à la réalisation de la partie 2
+## un sous dossier partie 3
+avec le code lié à la réalisation de la partie 3
+
+
+
 # TP Dynamique connaissance partie 1
 
 # le dossier est composé d'une part des fichiers python pour le déploiement et test du framework ABA et les fichiers pour le service web
